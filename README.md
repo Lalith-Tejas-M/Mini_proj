@@ -438,9 +438,3 @@ This system transforms:
 Experience → Intelligence → Insight → Action
 
 ---
-
-
-
-That will take you from **0 → working project fast** 🚀
-
----
