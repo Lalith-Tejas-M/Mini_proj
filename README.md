@@ -1,5 +1,3 @@
-# Mini_proj
-Minor project
 # 🌳 Intergenerational Knowledge Preservation using Agentic AI
 
 ---

@@ -1,0 +1,16 @@
+﻿node_modules/
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+frontend/dist/
+frontend/node_modules/
+backend/.venv/
+backend/venv/
+backend/data/faiss_index/
+backend/data/uploads/
+backend/logs/
+node-v20.*
+*.zip
+*.pdf
