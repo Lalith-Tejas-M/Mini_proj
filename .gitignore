@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .env
 __pycache__/
 *.pyc
@@ -14,3 +14,7 @@ backend/logs/
 node-v20.*
 *.zip
 *.pdf
+.pytest_cache/
+*.log
+backend/backend.log
+

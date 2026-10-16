@@ -33,49 +33,52 @@ class ExtractionService:
                     system=EXTRACTION_SYSTEM_PROMPT,
                     format_json=True
                 )
-                
+            except Exception as e:
+                logger.error("ollama_extraction_error", error=str(e), upload_id=upload_id)
+                raise
+
+            try:
                 raw_extractions = json.loads(response)
-                if not isinstance(raw_extractions, list):
-                    raw_extractions = [raw_extractions]
-                    
-                for raw_know in raw_extractions:
-                    if not self._is_meaningful(raw_know):
-                        continue
-                        
-                    # Save raw knowledge
-                    knowledge_id = str(uuid.uuid4())
-                    await db_client.insert("extracted_knowledge", {
-                        "id": knowledge_id,
-                        "upload_id": upload_id,
-                        "knowledge_type": raw_know.get("type", "Unknown"),
-                        "topic": raw_know.get("topic", "Unknown"),
-                        "value_tag": raw_know.get("value", ""),
-                        "pattern": raw_know.get("pattern", ""),
-                        "raw_snippet": raw_know.get("raw_snippet", "")
-                    })
-                    
-                    # Structure it
-                    structured_json = await structuring_agent.structure_knowledge(raw_know)
-                    structured_id = str(uuid.uuid4())
-                    
-                    # Save structured data
-                    await db_client.insert("structured_data", {
-                        "id": structured_id,
-                        "knowledge_id": knowledge_id,
-                        "structured_json": json.dumps(structured_json),
-                        "agent_version": "1.0"
-                    })
-                    
-                    # Store semantic embedding into FAISS for retrieval
-                    snippet_content = f"{raw_know.get('topic', '')}. {raw_know.get('pattern', '')}. {raw_know.get('raw_snippet', '')}"
-                    await memory_manager.store_knowledge_embedding(knowledge_id, snippet_content)
-                    
-                    all_structured_data.append(structured_json)
-                    
             except json.JSONDecodeError as e:
                 logger.error("extraction_json_parse_error", error=str(e), response=response)
-            except Exception as e:
-                logger.error("extraction_chunk_failed", error=str(e))
+                raise ValueError(f"Knowledge extraction model returned invalid JSON: {str(e)}")
+                
+            if not isinstance(raw_extractions, list):
+                raw_extractions = [raw_extractions]
+                
+            for raw_know in raw_extractions:
+                if not isinstance(raw_know, dict) or not self._is_meaningful(raw_know):
+                    continue
+                    
+                # Save raw knowledge
+                knowledge_id = str(uuid.uuid4())
+                await db_client.insert("extracted_knowledge", {
+                    "id": knowledge_id,
+                    "upload_id": upload_id,
+                    "knowledge_type": raw_know.get("type", "Unknown"),
+                    "topic": raw_know.get("topic", "Unknown"),
+                    "value_tag": raw_know.get("value", ""),
+                    "pattern": raw_know.get("pattern", ""),
+                    "raw_snippet": raw_know.get("raw_snippet", "")
+                })
+                
+                # Structure it
+                structured_json = await structuring_agent.structure_knowledge(raw_know)
+                structured_id = str(uuid.uuid4())
+                
+                # Save structured data
+                await db_client.insert("structured_data", {
+                    "id": structured_id,
+                    "knowledge_id": knowledge_id,
+                    "structured_json": json.dumps(structured_json),
+                    "agent_version": "1.0"
+                })
+                
+                # Store semantic embedding into FAISS for retrieval
+                snippet_content = f"{raw_know.get('topic', '')}. {raw_know.get('pattern', '')}. {raw_know.get('raw_snippet', '')}"
+                await memory_manager.store_knowledge_embedding(knowledge_id, snippet_content)
+                
+                all_structured_data.append(structured_json)
                 
         return all_structured_data
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import api from '../../api/client';
 import useStore from '../../store/useStore';
@@ -24,7 +24,7 @@ const FeedbackControls = ({ insightId }) => {
       toast.success('Feedback recorded. The agent will learn from this.', {
         icon: rating === 'thumbs_up' ? '👍' : '👎',
       });
-    } catch (err) {
+    } catch {
       setFeedback(null); // revert on fail
     }
   };

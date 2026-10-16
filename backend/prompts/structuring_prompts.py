@@ -9,19 +9,19 @@ Given the following raw extracted knowledge piece, convert it into this exact JS
 Ensure all fields are present.
 
 Schema:
-{
-  "core_insight": {
+{{
+  "core_insight": {{
     "type": "string",
     "topic": "string",
     "value_tag": "string",
     "behavioral_pattern": "string"
-  },
-  "context": {
+  }},
+  "context": {{
     "raw_snippet": "string",
     "implied_era_or_context": "string (guess based on text, or 'Unknown')"
-  },
+  }},
   "tags": ["array", "of", "3", "relevant", "keywords"]
-}
+}}
 
 Raw Knowledge:
 Type: {type}

@@ -54,12 +54,14 @@ class MemoryManager:
             logger.error("failed_to_store_embedding_metadata", error=str(e))
             raise
 
-    async def retrieve_similar(self, query: str, top_k: int = 5) -> list[dict]:
-        """Search for related knowledge using semantic search."""
-        logger.info("retrieving_semantic_memory", query=query)
+    async def retrieve_similar(self, query: str, user_id: str = None, top_k: int = 5) -> list[dict]:
+        """Search for related knowledge using semantic search, optionally scoped to a user."""
+        logger.info("retrieving_semantic_memory", query=query, user_id=user_id)
         
         vector = generate_embedding(query)
-        faiss_ids, scores = faiss_store.search(vector, top_k=top_k)
+        # When scoped to a user, retrieve a larger candidate set from FAISS to ensure top_k after user filtering
+        search_k = max(top_k * 5, 20) if user_id else top_k
+        faiss_ids, scores = faiss_store.search(vector, top_k=search_k)
         
         if not faiss_ids:
             return []
@@ -68,27 +70,36 @@ class MemoryManager:
         str_ids = [f"'{str(fid)}'" for fid in faiss_ids]
         ids_csv = ",".join(str_ids)
         
-        # Join embeddings and extracted_knowledge to get full context
+        user_clause = ""
+        if user_id:
+            safe_user_id = str(user_id).replace("'", "''")
+            user_clause = f" AND u.user_id = '{safe_user_id}'"
+
+        # Join embeddings, extracted_knowledge, and uploads to ensure user scoping
         sql = f"""
-        SELECT ek.id, ek.knowledge_type, ek.topic, ek.pattern, ek.raw_snippet, e.faiss_id
+        SELECT ek.id, ek.knowledge_type, ek.topic, ek.value_tag, ek.pattern, ek.raw_snippet, e.faiss_id, u.user_id
         FROM embeddings e
         JOIN extracted_knowledge ek ON e.knowledge_id = ek.id
-        WHERE e.faiss_id IN ({ids_csv})
+        JOIN uploads u ON ek.upload_id = u.id
+        WHERE e.faiss_id IN ({ids_csv}){user_clause}
         """
         try:
             results = await db_client.execute(sql)
             
-            # We want to return them ordered by FAISS score
-            # Create a map of faiss_id (as str) to score for quick lookup
             score_map = {str(fid): score for fid, score in zip(faiss_ids, scores)}
             
             for row in results:
-                fid = str(row["faiss_id"])
-                row["similarity_score"] = score_map.get(fid, 0.0)
+                fid = str(row.get("faiss_id"))
+                raw_score = score_map.get(fid, 0.0)
+                clamped_score = max(0.0, min(1.0, round(float(raw_score), 4)))
+                row["similarity_score"] = clamped_score
+                row["relevance_score"] = clamped_score
+                row["category"] = row.get("knowledge_type", "Unknown")
+                row["snippet"] = row.get("raw_snippet", "")
                 
             # Sort descending by score
             results.sort(key=lambda x: x["similarity_score"], reverse=True)
-            return results
+            return results[:top_k]
             
         except Exception as e:
             logger.error("memory_retrieval_failed", error=str(e))

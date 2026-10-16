@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../api/client';
 import useStore from '../store/useStore';
 import KnowledgeTypeChart from '../components/charts/KnowledgeTypeChart';

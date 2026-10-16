@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Loader2, Search } from 'lucide-react';
 import api from '../api/client';
 import useStore from '../store/useStore';
@@ -21,7 +21,7 @@ const Dashboard = () => {
         })
         .catch(console.error);
     }
-  }, [user]);
+  }, [user?.id, setRecentInsights]);
 
   const handleGenerate = async (e) => {
     e.preventDefault();

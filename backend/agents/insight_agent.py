@@ -19,8 +19,8 @@ class InsightAgent:
         4. Regenerate if failed (max 3 tries)
         5. Score and return
         """
-        # 1. RAG Memory Retrieval
-        memory_results = await memory_manager.retrieve_similar(topic, top_k=3)
+        # 1. RAG Memory Retrieval (scoped to the user's preserved knowledge)
+        memory_results = await memory_manager.retrieve_similar(topic, user_id=user_id, top_k=3)
         memory_context = ""
         retrieval_sim = 0.0
         if memory_results:
@@ -42,27 +42,28 @@ class InsightAgent:
         
         # 3. Validation & Regeneration Loop
         max_retries = 3
-        attempts = 0
-        final_validation = None
+        attempts = 1
+        final_validation = await validation_engine.evaluate_insight(topic, insight_json)
         
-        while attempts < max_retries:
+        while not final_validation["passed"] and attempts < max_retries:
             attempts += 1
-            logger.info("insight_validation_attempt", attempt=attempts)
-            
-            final_validation = await validation_engine.evaluate_insight(topic, insight_json)
-            
-            if final_validation["passed"]:
-                break
-                
-            logger.warn("insight_rejected", reason=final_validation["failure_reason"])
+            logger.info("insight_validation_retry", attempt=attempts, reason=final_validation.get("failure_reason"))
             
             # Regenerate
             regen_prompt = REGENERATION_USER_PROMPT.format(
                 topic=topic,
-                failure_reason=final_validation["failure_reason"],
+                failure_reason=final_validation.get("failure_reason", "Validation criteria not met"),
                 rejected_json=json.dumps(insight_json)
             )
             insight_json = await self._call_llm(regen_prompt, REGENERATION_SYSTEM_PROMPT)
+            final_validation = await validation_engine.evaluate_insight(topic, insight_json)
+
+        if not final_validation["passed"]:
+            logger.warn("insight_validation_exhausted", attempts=attempts, reason=final_validation.get("failure_reason"))
+            if attempts >= max_retries and final_validation.get("status") != "validation_unavailable":
+                final_validation["status"] = "validation_failed"
+                final_validation["validation_status"] = "validation_failed"
+                final_validation["failure_reason"] = f"Regeneration exhausted after {max_retries} attempts: {final_validation.get('failure_reason', '')}"
 
         # 4. Final Scoring
         # Memory alignment heuristic: rough overlap of words between memory context and generated text
@@ -70,9 +71,9 @@ class InsightAgent:
         out_words = set(json.dumps(insight_json).lower().split())
         overlap = len(mem_words.intersection(out_words)) / max(1, len(mem_words)) if memory_results else 0.0
         
-        final_score = scoring_engine.calculate_final_score(
+        component_scores = scoring_engine.calculate_components(
             retrieval_similarity=retrieval_sim,
-            semantic_relevance=retrieval_sim * 0.9, # approximation
+            semantic_relevance=retrieval_sim * 0.9, # approximation from retrieval
             consistency_score=final_validation.get("consistency_score", 0.0),
             structural_quality=final_validation.get("structural_quality", 0.0),
             memory_alignment=min(1.0, overlap * 2.0)
@@ -81,7 +82,8 @@ class InsightAgent:
         return {
             "insight": insight_json,
             "validation": final_validation,
-            "final_score": final_score,
+            "final_score": component_scores["final_score"],
+            "component_scores": component_scores,
             "attempts": attempts,
             "memory_used": len(memory_results) > 0
         }

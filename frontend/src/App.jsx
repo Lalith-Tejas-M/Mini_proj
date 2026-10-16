@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import useStore from './store/useStore';
 
@@ -16,8 +16,8 @@ import api from './api/client';
 
 const Login = () => {
   const { setUser } = useStore();
-  const [email, setEmail] = React.useState('test@test.com');
-  const [password, setPassword] = React.useState('password');
+  const [email, setEmail] = useState('test@test.com');
+  const [password, setPassword] = useState('password');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -25,11 +25,11 @@ const Login = () => {
       // Create user if not exists (auto-register for demo)
       try {
         await api.post('/users/register', { name: "Demo User", email, password });
-      } catch (e) { /* ignore if exists */ }
+      } catch { /* ignore if exists */ }
       
       const res = await api.post('/users/login', { email, password });
       setUser(res.data);
-    } catch (err) {
+    } catch {
       alert("Login failed");
     }
   };

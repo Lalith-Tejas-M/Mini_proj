@@ -16,16 +16,22 @@ def get_whisper_model():
         _model = whisper.load_model("base")
     return _model
 
-async def process_speech(audio_bytes: bytes) -> str:
+SUPPORTED_AUDIO_EXTENSIONS = {".wav", ".mp3", ".webm", ".ogg", ".m4a", ".flac", ".aac"}
+
+async def process_speech(audio_bytes: bytes, filename: str = "audio.wav") -> str:
     """Extract text from audio bytes using local Whisper model."""
-    # Whisper requires a file path (or numpy array). Writing to temp file is easiest.
-    fd, temp_path = tempfile.mkstemp(suffix=".wav")
+    suffix = os.path.splitext(filename)[1].lower() if filename else ".wav"
+    if not suffix or suffix not in SUPPORTED_AUDIO_EXTENSIONS:
+        # Default to webm if unknown or validate
+        suffix = ".wav"
+
+    fd, temp_path = tempfile.mkstemp(suffix=suffix)
     try:
         with os.fdopen(fd, 'wb') as f:
             f.write(audio_bytes)
             
         model = get_whisper_model()
-        logger.info("transcribing_audio")
+        logger.info("transcribing_audio", filename=filename, suffix=suffix, size_bytes=len(audio_bytes))
         result = model.transcribe(temp_path)
         
         raw_text = result.get("text", "")
@@ -33,4 +39,7 @@ async def process_speech(audio_bytes: bytes) -> str:
     finally:
         # Cleanup temp file
         if os.path.exists(temp_path):
-            os.remove(temp_path)
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass

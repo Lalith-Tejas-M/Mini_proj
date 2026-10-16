@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Upload as UploadIcon, File, X, Loader2 } from 'lucide-react';
 import api from '../../api/client';
 import useStore from '../../store/useStore';

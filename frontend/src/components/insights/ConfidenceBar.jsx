@@ -1,4 +1,3 @@
-import React from 'react';
 
 const ConfidenceBar = ({ score }) => {
   // Score is expected to be between 0.0 and 1.0

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Brain, ArrowRight, Activity, Zap } from 'lucide-react';
 import ConfidenceBar from './ConfidenceBar';
 import ValidationBadge from './ValidationBadge';
@@ -11,10 +11,8 @@ const InsightCard = ({ insight }) => {
   const parseJsonSafe = (data) => {
     if (typeof data === 'string') {
       try {
-        // DB might return single quotes depending on python str() vs json.dumps()
-        // we'll try to handle it gracefully
         return JSON.parse(data.replace(/'/g, '"'));
-      } catch (e) {
+      } catch {
         return {};
       }
     }
@@ -36,7 +34,7 @@ const InsightCard = ({ insight }) => {
             <h3 className="font-semibold text-textMain">Agentic Insight</h3>
             <div className="flex items-center gap-3 mt-1">
               <span className="text-xs text-textMuted flex items-center gap-1"><Activity size={12}/> AI Synthesized</span>
-              <ValidationBadge passed={insight.validation_passed} />
+              <ValidationBadge passed={insight.validation_passed} status={insight.validation_status} />
             </div>
           </div>
         </div>

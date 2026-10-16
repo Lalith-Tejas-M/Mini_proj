@@ -29,20 +29,7 @@ class StructuringAgent:
             
         except json.JSONDecodeError as e:
             logger.error("structuring_json_parse_failed", error=str(e), response=response)
-            # Fallback structure
-            return {
-                "core_insight": {
-                    "type": raw_knowledge.get("type", ""),
-                    "topic": raw_knowledge.get("topic", ""),
-                    "value_tag": raw_knowledge.get("value", ""),
-                    "behavioral_pattern": raw_knowledge.get("pattern", "")
-                },
-                "context": {
-                    "raw_snippet": raw_knowledge.get("raw_snippet", ""),
-                    "implied_era_or_context": "Unknown"
-                },
-                "tags": []
-            }
+            raise ValueError(f"Structuring agent failed to parse model JSON: {str(e)}")
         except Exception as e:
             logger.error("structuring_agent_failed", error=str(e))
             raise

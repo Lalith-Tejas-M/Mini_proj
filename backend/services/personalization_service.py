@@ -18,12 +18,25 @@ class PersonalizationService:
             user_rows = await db_client.execute(sql_user)
             if user_rows and user_rows[0].get("preferences"):
                 try:
-                    prefs = json.loads(user_rows[0]["preferences"])
-                    context_parts.append("User Preferences:")
-                    for k, v in prefs.items():
-                        context_parts.append(f"- {k}: {v}")
-                except:
-                    pass
+                    raw_prefs = user_rows[0]["preferences"]
+                    prefs = json.loads(raw_prefs) if isinstance(raw_prefs, str) else raw_prefs
+                    if isinstance(prefs, dict) and prefs:
+                        context_parts.append("User Preferences & Persona Guidelines:")
+                        if prefs.get("topics_of_interest"):
+                            topics = prefs["topics_of_interest"]
+                            topics_str = ", ".join(topics) if isinstance(topics, list) else str(topics)
+                            context_parts.append(f"- Target Topics of Interest: {topics_str}")
+                        if prefs.get("preferred_tone"):
+                            context_parts.append(f"- Desired Tone: {prefs['preferred_tone']}")
+                        if prefs.get("focus_era"):
+                            context_parts.append(f"- Priority Historical Era: {prefs['focus_era']}")
+                        if prefs.get("actionability_level"):
+                            context_parts.append(f"- Actionability Level: {prefs['actionability_level']}")
+                        for k, v in prefs.items():
+                            if k not in ["topics_of_interest", "preferred_tone", "focus_era", "actionability_level"]:
+                                context_parts.append(f"- {k}: {v}")
+                except Exception as parse_err:
+                    logger.warn("preferences_parse_failed", error=str(parse_err))
             
             # 2. Fetch past approved patterns (thumbs_up)
             sql_feedback = f"""

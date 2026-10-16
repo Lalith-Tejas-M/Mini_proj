@@ -33,4 +33,7 @@ class InsightResponse(BaseModel):
     recommendations: Optional[Dict[str, Any]] = None
     confidence_score: float
     validation_passed: bool
+    validation_status: str = "validated"
+    validation_reason: Optional[str] = ""
+    component_scores: Optional[Dict[str, float]] = None
     created_at: str
